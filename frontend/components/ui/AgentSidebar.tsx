@@ -8,12 +8,14 @@ type AgentStep = {
 
 type Iteration = { searcher: boolean; writer: boolean; critic: boolean; score: number };
 
-function groupIntoIterations(steps: AgentStep[]) {
+function groupIntoIterations(steps: AgentStep[], isLoading: boolean) {
     const planner = steps.find(s => s.agent === "planner");
     const rounds: Iteration[] = [];
     let current: Iteration | null = null;
+    let lastAgent = "";
 
     for (const step of steps) {
+        lastAgent = step.agent;
         if (step.agent === "searcher") {
             if (current) rounds.push(current);
             current = { searcher: true, writer: false, critic: false, score: 0 };
@@ -25,6 +27,12 @@ function groupIntoIterations(steps: AgentStep[]) {
         }
     }
     if (current) rounds.push(current);
+
+    // If still loading and waiting for a new searcher pass, inject a pending round
+    if (isLoading && (lastAgent === "planner" || lastAgent === "critic")) {
+        rounds.push({ searcher: false, writer: false, critic: false, score: 0 });
+    }
+
     return { planner, rounds };
 }
 
@@ -36,7 +44,7 @@ const AGENT_ICONS = {
 };
 
 export default function AgentSidebar({ steps, isLoading }: { steps: AgentStep[]; isLoading: boolean }) {
-    const { planner, rounds } = groupIntoIterations(steps);
+    const { planner, rounds } = groupIntoIterations(steps, isLoading);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -105,8 +113,8 @@ export default function AgentSidebar({ steps, isLoading }: { steps: AgentStep[];
                                 </div>
 
                                 <div style={{ paddingLeft: "1.1rem", borderLeft: "1px solid var(--border)", marginLeft: "0.6rem" }}>
-                                    <CompactStep icon={<IconSearch size={11} color="var(--searcher)" />} label="Searcher" color="var(--searcher)" done={round.searcher} active={isLastRound && isLoading && !round.writer} />
-                                    <CompactStep icon={<IconEdit size={11} color="var(--writer)" />} label="Writer" color="var(--writer)" done={round.writer} active={isLastRound && isLoading && round.searcher && !round.critic} />
+                                    <CompactStep icon={<IconSearch size={11} color="var(--searcher)" />} label="Searcher" color="var(--searcher)" done={round.searcher} active={isLastRound && isLoading && !round.searcher} />
+                                    <CompactStep icon={<IconEdit size={11} color="var(--writer)" />} label="Writer" color="var(--writer)" done={round.writer} active={isLastRound && isLoading && round.searcher && !round.writer} />
                                     <CompactStep icon={<IconScale size={11} color="var(--critic)" />} label="Critic" color="var(--critic)" done={round.critic} active={isLastRound && isLoading && round.writer && !round.critic}
                                         badge={round.score > 0 ? { score: round.score, passed } : undefined}
                                     />
