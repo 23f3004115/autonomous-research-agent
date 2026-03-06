@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --border: #21262d;
+  --border-light: #30363d;
+  --text: #e6edf3;
+  --text-muted: #7d8590;
+  --accent: #6366f1;
+  --accent-dim: rgba(99,102,241,0.12);
+  --accent-border: rgba(99,102,241,0.4);
+  --success: #3fb950;
+  --success-dim: rgba(63,185,80,0.12);
+  --warning: #d29922;
+  --warning-dim: rgba(210,153,34,0.12);
+  --danger: #f85149;
+  --planner: #818cf8;
+  --searcher: #22d3ee;
+  --writer: #34d399;
+  --critic: #fbbf24;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+/* Report markdown */
+.report-content { line-height: 1.75; }
+.report-content h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); margin-bottom: 0.75rem; }
+.report-content h2 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 1.75rem 0 0.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+.report-content h3 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 1rem 0 0.35rem; }
+.report-content p { color: var(--text-muted); margin-bottom: 0.85rem; font-size: 0.92rem; }
+.report-content ul, .report-content ol { margin: 0.5rem 0 1rem 1.25rem; }
+.report-content li { color: var(--text-muted); margin-bottom: 0.4rem; font-size: 0.92rem; }
+.report-content strong { color: var(--text); font-weight: 600; }
+.report-content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-border); }
+.report-content a:hover { border-color: var(--accent); }
+.report-content blockquote { border-left: 3px solid var(--border-light); padding-left: 1rem; color: var(--text-muted); margin: 1rem 0; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

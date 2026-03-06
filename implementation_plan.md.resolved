@@ -1,0 +1,193 @@
+# Autonomous Research Agent — Bootcamp Roadmap
+
+## What We're Building
+
+A production-quality multi-agent AI system where:
+1. **Planner** breaks a research goal into 3–5 sub-questions
+2. **Searcher** uses Tavily to search the web for each sub-question
+3. **Writer** synthesizes all results into a structured report with citations
+4. **Critic** scores the report. If < 7 → retry loop. If ≥ 7 → finalize.
+5. **Frontend** shows each agent's reasoning steps live in a sidebar
+6. **Supabase** saves all sessions. Users log in and see past research.
+
+---
+
+## Architecture Diagram
+
+```
+User (Next.js) ──POST /research──► FastAPI
+                                      │
+                              LangGraph Runner
+                             ┌────────┴────────┐
+                          Planner           AgentState
+                             │         (shared memory)
+                          Searcher
+                        (Tavily API)
+                             │
+                          Writer
+                        (OpenAI GPT)
+                             │
+                          Critic ──score < 7──► Searcher (retry)
+                             │
+                          score ≥ 7
+                             │
+                      Save to Supabase
+                             │
+                      WebSocket stream ──► Frontend sidebar (live steps)
+```
+
+---
+
+## Tech Stack & Why Each Tool
+
+| Tool | Role | Why |
+|---|---|---|
+| **LangGraph** | Agent orchestration | Stateful graph — nodes, edges, conditional routing, retry loops |
+| **OpenAI gpt-4o-mini** | Planner, Writer, Critic | Cheapest capable model. Enough for structured outputs |
+| **Tavily API** | Web search | Built for LLM agents. Returns clean markdown results |
+| **FastAPI** | Backend API | Async Python, WebSocket support, auto Swagger docs |
+| **Next.js + shadcn/ui** | Frontend | Production-grade React + professional pre-built components |
+| **Supabase** | Database + Auth | Free Postgres + auth with 1 min setup. No backend auth code needed |
+| **Railway** | FastAPI hosting | Git-push deploy, free tier, auto env management |
+| **Vercel** | Next.js hosting | Instant deploy from GitHub, best-in-class for Next.js |
+
+---
+
+## Project Folder Structure
+
+```
+autonomous-research-agent/
+│
+├── backend/                        # FastAPI + LangGraph
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── state.py               # AgentState TypedDict
+│   │   ├── planner.py             # Planner node
+│   │   ├── searcher.py            # Searcher node (Tavily)
+│   │   ├── writer.py              # Writer node
+│   │   └── critic.py              # Critic node + score logic
+│   ├── graph/
+│   │   ├── __init__.py
+│   │   └── research_graph.py      # LangGraph graph assembly + edges
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes.py              # FastAPI routes
+│   │   └── websocket.py           # WebSocket streaming
+│   ├── db/
+│   │   ├── __init__.py
+│   │   └── supabase_client.py     # Supabase read/write
+│   ├── main.py                    # FastAPI app entry point
+│   ├── requirements.txt
+│   └── .env                       # API keys (never commit this)
+│
+└── frontend/                       # Next.js + shadcn/ui
+    ├── app/
+    │   ├── page.tsx               # Research input + live sidebar
+    │   ├── history/
+    │   │   └── page.tsx           # Past sessions
+    │   ├── login/
+    │   │   └── page.tsx           # Supabase auth
+    │   └── layout.tsx
+    ├── components/
+    │   ├── ResearchForm.tsx        # Goal input + submit
+    │   ├── AgentSidebar.tsx        # Live step feed
+    │   ├── ReportView.tsx          # Final report display
+    │   └── SessionCard.tsx         # History item
+    ├── lib/
+    │   ├── supabase.ts            # Supabase client (frontend)
+    │   └── api.ts                 # Backend API calls
+    └── .env.local                 # Frontend env vars
+```
+
+---
+
+## Phase Breakdown
+
+### Phase 0 — Foundation Setup
+**You'll learn:** Python project structure, virtual environments, API key management, testing third-party APIs
+
+**What gets built:**
+- Project folder created
+- Python venv + all dependencies installed
+- `.env` file with OpenAI, Tavily, Supabase keys
+- Two test scripts: one calls OpenAI, one calls Tavily — just to confirm keys work
+
+---
+
+### Phase 1 — LangGraph Agents (The Core)
+**You'll learn:** LangGraph state machines, how to build nodes/edges, conditional routing, retry logic
+
+**What gets built:**
+- `AgentState` — the shared memory object passed between all agents
+- `Planner` node — calls GPT, returns list of sub-questions
+- `Searcher` node — calls Tavily for each sub-question, stores results
+- `Writer` node — calls GPT, returns structured report with citations
+- `Critic` node — calls GPT, returns score + feedback
+- `research_graph.py` — wires everything together with retry edge
+- **End-to-end test in terminal**: type a goal, see the full agent loop run
+
+---
+
+### Phase 2 — FastAPI Backend
+**You'll learn:** REST API design, async Python, WebSockets for real-time streaming
+
+**What gets built:**
+- `POST /research` — starts a new research run
+- `GET /ws/{session_id}` — WebSocket that streams each agent step live
+- `GET /sessions` — returns all past sessions for a user
+- CORS setup for Next.js
+
+---
+
+### Phase 3 — Supabase Integration
+**You'll learn:** SQL schema design, Supabase Python client, auth token flow
+
+**What gets built:**
+- `research_sessions` table in Supabase
+- Save completed session (goal, sub-questions, report, score, timestamp)
+- Fetch sessions by user
+- Row-level security so users only see their own sessions
+
+---
+
+### Phase 4 — Next.js Frontend
+**You'll learn:** Next.js app router, shadcn/ui components, WebSocket in React, Supabase Auth
+
+**What gets built:**
+- Research input page with goal form
+- Live agent sidebar (WebSocket-powered, shows each step as it happens)
+- Final report view with citations
+- Session history page
+- Login/Signup with Supabase Auth
+
+---
+
+### Phase 5 — Deployment
+**You'll learn:** Environment variables in production, Railway + Vercel deploy, debugging prod builds
+
+**What gets built:**
+- FastAPI live on Railway URL
+- Next.js live on Vercel URL
+- Working end-to-end in production
+
+---
+
+## APIs You Need (Get These First)
+
+| API | Where to get | Free tier |
+|---|---|---|
+| OpenAI | [platform.openai.com](https://platform.openai.com) | Pay-as-you-go (~$1-2 for this project) |
+| Tavily | [app.tavily.com](https://app.tavily.com) | 1000 searches/month free |
+| Supabase | [supabase.com](https://supabase.com) | Free tier, no credit card |
+
+---
+
+## How We'll Work Together
+
+- **Each phase = one session**
+- I'll explain every concept before we code it
+- You'll type and run the code yourself (not just copy-paste)
+- After each phase, we test it before moving on
+- At the end, you'll be able to explain every line in an interview
+
+**Ready to start Phase 0?** Tell me and we'll begin immediately.
