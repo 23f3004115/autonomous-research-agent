@@ -38,6 +38,20 @@ async def websocket_research(websocket: WebSocket):
             for node_name, node_output in event.items():
                 # Merge into final_state so we have the complete result at the end
                 final_state.update(node_output)
+
+                # Build execution trace for the Searcher: show what was queried and what sources returned
+                trace = None
+                if node_name == "searcher" and node_output.get("search_results"):
+                    from urllib.parse import urlparse
+                    seen_queries: dict = {}
+                    for r in node_output["search_results"]:
+                        q = r.get("question", "")
+                        if q not in seen_queries:
+                            seen_queries[q] = []
+                        domain = urlparse(r.get("url", "")).netloc.replace("www.", "")
+                        seen_queries[q].append({"title": r.get("title", ""), "domain": domain, "url": r.get("url", "")})
+                    trace = [{"query": q, "sources": srcs} for q, srcs in seen_queries.items()]
+
                 await websocket.send_json({
                     "type": "agent_update",
                     "agent": node_name,
@@ -46,20 +60,24 @@ async def websocket_research(websocket: WebSocket):
                         "score": node_output.get("score", 0),
                         "critique": node_output.get("critique", ""),
                         "report": node_output.get("report", ""),
+                        "trace": trace,
                     }
                 })
 
         # Save the completed session to Supabase for history
         session_id = str(uuid.uuid4())
-        save_session(
-            session_id,
-            goal,
-            final_state.get("sub_questions", []),
-            final_state.get("report", ""),
-            final_state.get("score", 0),
-            final_state.get("iteration", 1),
-        )
-        print(f"   Session saved to Supabase (id: {session_id[:8]}...)")
+        try:
+            save_session(
+                session_id,
+                goal,
+                final_state.get("sub_questions", []),
+                final_state.get("report", ""),
+                final_state.get("score", 0),
+                final_state.get("iteration", 1),
+            )
+            print(f"   Session saved to Supabase (id: {session_id[:8]}...)")
+        except Exception as e:
+            print(f"   [Error] Failed to save session to Supabase: {e}")
 
         await websocket.send_json({
             "type": "done",

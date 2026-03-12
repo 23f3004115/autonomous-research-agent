@@ -1,14 +1,27 @@
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 from api.websocket import ws_router
+from api.monitor_routes import monitor_router
+from scheduler.monitor_scheduler import start_scheduler, stop_scheduler
 
-app = FastAPI(title="Research Agent API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()     # Start background monitor polling
+    yield
+    stop_scheduler()      # Clean up on shutdown
 
-# Allow frontend to talk to this backend
+app = FastAPI(title="Pulse Research API", version="2.0.0", lifespan=lifespan)
+
+# Read allowed origins from env — falls back to localhost for dev
+_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+allowed_origins = [o.strip() for o in _origins_env.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (localhost and Vercel)
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -16,7 +29,8 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(ws_router)
+app.include_router(monitor_router)
 
 @app.get("/")
 def health_check():
-    return {"status": "running", "message": "Research Agent API is live"}
+    return {"status": "running", "message": "Pulse Research API is live", "version": "2.0.0"}

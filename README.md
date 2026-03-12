@@ -1,74 +1,184 @@
-# Autonomous Research Agent 🧠
+<div align="center">
 
-![Autonomous Research Agent](https://img.shields.io/badge/Status-Live-success)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
-![LangGraph](https://img.shields.io/badge/LangGraph-1C1C1C?style=flat&logo=langchain)
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=next.js&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat&logo=supabase&logoColor=white)
+# Autonomous Research Agent
 
-An advanced, AI-powered autonomous research system that plans, researches, writes, and evaluates comprehensive reports on any given topic. Built with a robust agentic architecture using LangGraph and a real-time streaming frontend.
+**An AI-powered research system that plans, searches, writes, and self-critiques — automatically.**
 
----
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-1C1C1C?style=flat-square&logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
+[![Python](https://img.shields.io/badge/Python_3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 
-## 🚀 The Pitch
+[**→ Live Demo**](https://your-vercel-url.vercel.app) &nbsp;·&nbsp; [**Backend API**](https://research-agent-backend-2n03.onrender.com)
 
-In modern high-stakes environments, simply summarizing the top three Google results isn't enough. I built the **Autonomous Research Agent** to mimic the workflow of a human analyst. Instead of taking a question and vomiting a single LLM response, this system utilizes a **multi-agent orchestration loop (via LangGraph)** to execute deep research:
-
-1. **The Planner** decomposes complex user goals into hyper-specific sub-queries.
-2. **The Searcher** iteratively scrapes the web for data on each sub-query.
-3. **The Writer** synthesizes the raw data into an analytical, markdown-formatted report with inline citations.
-4. **The Critic** strictly evaluates the report against a calibrated rubric (depth, citations, clarity). If the report scores below a 6/10, the Critic writes actionable feedback, and the system **loops back to the Searcher** to try again.
-
-By engineering this self-correcting feedback loop, the system consistently produces high-quality, cited insights that single-shot models cannot achieve. The entire state machine is exposed to the client in **real-time via WebSockets**, rendering a beautiful, interactive timeline in the Next.js frontend as the agents "think" and work. All sessions are persisted to **Supabase** for historical review.
+</div>
 
 ---
 
-## 🛠️ Architecture
+## What It Does
 
-### Backend (Python / FastAPI / LangGraph)
-- **Agentic Workflow Workflow**: Implemented a StateGraph using `LangGraph` for control flow, state management, and retry logic.
-- **LLM Integration**: Uses `langchain-openai` (GPT models) for reasoning and text generation.
-- **Data Gathering**: Integrated `Tavily API` for high-quality, real-time web search integration.
-- **Streaming**: Exposes a WebSocket endpoint (`/ws/research`) to stream Agentic events step-by-step as they execute.
-- **Persistence**: Connects to `Supabase` to save session states, final reports, and sub-questions.
+Instead of asking an LLM a question and getting one generic answer, this system runs **four specialized agents in a self-correcting loop**:
 
-### Frontend (TypeScript / Next.js / Tailwind CSS)
-- **Real-time UX**: Connects to the FastAPI WebSocket to parse and render incoming agent graph states (e.g., streaming planner output, animating search progress).
-- **Modern UI**: Designed a sleek, dark-mode application using raw CSS variables and Tailwind utilities, featuring interactive SVGs over generic emojis.
-- **History View**: Dedicated dashboard to navigate previously generated reports.
+```
+User Goal
+    │
+    ▼
+┌─────────────┐    Breaks the goal into specific sub-questions
+│   Planner   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐    Searches the web for each sub-question (Tavily API)
+│  Searcher   │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐    Synthesizes data into a cited, analytical report
+│   Writer    │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐    Scores the report (0-10) and writes actionable feedback
+│   Critic    │
+└──────┬──────┘
+       │
+   Score ≥ 6? ──No──► Back to Searcher (with critique as context)
+       │
+      Yes
+       │
+       ▼
+  Final Report
+```
+
+The full state machine is orchestrated by **LangGraph** and streamed in real-time to the frontend via **WebSockets**.
 
 ---
 
-## 💻 Running Locally
+## Tech Stack
 
-### Backend Setup
+| Layer | Technology |
+|---|---|
+| **Agent Orchestration** | LangGraph (StateGraph) |
+| **Language Model** | OpenAI GPT (via LangChain) |
+| **Web Search** | Tavily API |
+| **Backend API** | FastAPI + Uvicorn |
+| **Background Jobs** | APScheduler (monitor polling) |
+| **Email Notifications** | Resend |
+| **Database** | Supabase (PostgreSQL) |
+| **Frontend** | Next.js 16 + Tailwind CSS v4 |
+| **Real-time** | WebSockets |
+
+---
+
+## Features
+
+- **Multi-agent orchestration** — Planner, Searcher, Writer, and Critic agents with shared state
+- **Self-correcting loop** — Critic scores every report; low scores trigger automatic retry with feedback
+- **Real-time streaming UI** — WebSocket-powered live agent timeline in the frontend
+- **Research monitors** — Set up recurring research on a topic (daily/weekly/monthly) with email delivery
+- **Session history** — All completed research sessions saved to Supabase with scores and citations
+- **Clickable references** — Writer produces markdown hyperlinks for all cited sources
+
+---
+
+## Local Setup
+
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- Supabase project
+- OpenAI API key
+- Tavily API key
+
+### Backend
+
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
-*Create a `.env` file in the `backend` directory referencing `.env.example` (requires OpenAI, Tavily, and Supabase keys).*
+
+Create `backend/.env`:
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+MODEL_NAME=gpt-4o-mini
+TAVILY_API_KEY=tvly-...
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_KEY=eyJ...
+ALLOWED_ORIGINS=http://localhost:3000
+# Optional — for email notifications
+RESEND_API_KEY=re_...
+FROM_EMAIL=Research Agent <noreply@yourdomain.com>
+APP_URL=http://localhost:3000
+```
+
+Run the Supabase migration in your **Supabase Dashboard → SQL Editor**:
+```sql
+-- Run supabase_migration.sql
+```
+
 ```bash
 uvicorn main:app --reload --port 8000
 ```
 
-### Frontend Setup
+### Frontend
+
 ```bash
 cd frontend
 npm install
 ```
-*Create a `.env.local` file with `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL`.*
+
+Create `frontend/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+```
+
 ```bash
 npm run dev
 ```
 
----
-
-## 💡 Key Learnings & Engineering Decisions
-- **Deterministic Agent State**: By strictly defining the `AgentState` TypedDict, I ensured reliable context passing between isolated agent nodes (Planner -> Searcher -> Writer -> Critic).
-- **WebSocket over Polling**: Chose WebSockets to stream granular graph events (e.g., specific sub-queries generated) rather than polling a database, massively improving perceived performance and UX.
-- **Prompt Engineering as Code**: Realized the critical difference between a generic summary and deep analysis lies in prompt structure. Calibrated the "Critic" prompt to be strict but fair, and forced the "Writer" to prioritize interpretation over aggregation.
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
-*Built as a portfolio project demonstrating expertise in Agentic AI, modern full-stack web development, and system design.*
+
+## Deployment
+
+**Backend → [Render](https://render.com)**
+- Root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Set all env vars from `backend/.env` in Render's environment settings
+- Add `ALLOWED_ORIGINS=https://your-vercel-url.vercel.app`
+
+**Frontend → [Vercel](https://vercel.com)**
+- Root directory: `frontend`
+- Framework: Next.js (auto-detected)
+- Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` to your Render URL
+
+---
+
+## Project Structure
+
+```
+.
+├── backend/
+│   ├── agents/          # Planner, Searcher, Writer, Critic agent nodes
+│   ├── api/             # FastAPI routes (research, sessions, monitors)
+│   ├── db/              # Supabase client + monitor CRUD
+│   ├── graph/           # LangGraph StateGraph definition
+│   ├── notifications/   # Resend email sender
+│   ├── scheduler/       # APScheduler background monitor polling
+│   └── main.py          # FastAPI app with lifespan for scheduler
+└── frontend/
+    ├── app/             # Next.js App Router pages
+    ├── components/ui/   # AgentSidebar, ReportView, Icons
+    └── lib/             # Supabase client, ResearchContext
+```
+
+---
+
+*Built as a portfolio project demonstrating expertise in agentic AI systems, real-time full-stack development, and LLM orchestration with LangGraph.*

@@ -1,24 +1,35 @@
 "use client";
-import { IconBrain, IconSearch, IconEdit, IconScale, IconCheck, IconBot, IconLoader } from "./Icons";
+import { useState } from "react";
+import { IconBrain, IconSearch, IconEdit, IconScale, IconCheck, IconBot, IconLoader, IconChevronDown, IconChevronRight, IconExternalLink } from "./Icons";
 
 type AgentStep = {
     agent: string;
-    data: { sub_questions?: string[]; score?: number; critique?: string; report?: string };
+    data: {
+        sub_questions?: string[];
+        score?: number;
+        critique?: string;
+        report?: string;
+        trace?: { query: string; sources: { title: string; domain: string; url: string }[] }[];
+    };
 };
 
-type Iteration = { searcher: boolean; writer: boolean; critic: boolean; score: number };
+type Iteration = {
+    searcher: boolean;
+    writer: boolean;
+    critic: boolean;
+    score: number;
+    trace?: { query: string; sources: { title: string; domain: string; url: string }[] }[];
+};
 
-function groupIntoIterations(steps: AgentStep[], isLoading: boolean) {
+function groupIntoIterations(steps: AgentStep[]) {
     const planner = steps.find(s => s.agent === "planner");
     const rounds: Iteration[] = [];
     let current: Iteration | null = null;
-    let lastAgent = "";
 
     for (const step of steps) {
-        lastAgent = step.agent;
         if (step.agent === "searcher") {
             if (current) rounds.push(current);
-            current = { searcher: true, writer: false, critic: false, score: 0 };
+            current = { searcher: true, writer: false, critic: false, score: 0, trace: step.data.trace ?? undefined };
         } else if (step.agent === "writer" && current) {
             current.writer = true;
         } else if (step.agent === "critic" && current) {
@@ -27,24 +38,50 @@ function groupIntoIterations(steps: AgentStep[], isLoading: boolean) {
         }
     }
     if (current) rounds.push(current);
-
-    // If still loading and waiting for a new searcher pass, inject a pending round
-    if (isLoading && (lastAgent === "planner" || lastAgent === "critic")) {
-        rounds.push({ searcher: false, writer: false, critic: false, score: 0 });
-    }
-
     return { planner, rounds };
 }
 
-const AGENT_ICONS = {
-    planner: { Icon: IconBrain, color: "var(--planner)" },
-    searcher: { Icon: IconSearch, color: "var(--searcher)" },
-    writer: { Icon: IconEdit, color: "var(--writer)" },
-    critic: { Icon: IconScale, color: "var(--critic)" },
-};
+function TracePanel({ trace }: { trace: { query: string; sources: { title: string; domain: string; url: string }[] }[] }) {
+    const [open, setOpen] = useState(false);
+    const totalSources = trace.reduce((acc, t) => acc + t.sources.length, 0);
+
+    return (
+        <div style={{ marginTop: "0.3rem", background: "var(--bg)", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
+            <button
+                onClick={() => setOpen(v => !v)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.3rem 0.5rem", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.67rem" }}
+            >
+                {open ? <IconChevronDown size={10} color="var(--text-muted)" /> : <IconChevronRight size={10} color="var(--text-muted)" />}
+                <span>{trace.length} queries · {totalSources} sources</span>
+            </button>
+
+            {open && (
+                <div style={{ padding: "0 0.5rem 0.5rem" }}>
+                    {trace.map((t, i) => (
+                        <div key={i} style={{ marginBottom: "0.5rem" }}>
+                            <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 500, marginBottom: "0.2rem", lineHeight: 1.4 }}>
+                                "{t.query.slice(0, 60)}{t.query.length > 60 ? "…" : ""}"
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                                {t.sources.map((s, j) => (
+                                    <a key={j} href={s.url} target="_blank" rel="noopener noreferrer"
+                                        title={s.title}
+                                        style={{ fontSize: "0.62rem", padding: "0.1rem 0.4rem", borderRadius: 20, background: "var(--bg-tertiary)", border: "1px solid var(--border)", color: "var(--text-muted)", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.2rem" }}>
+                                        {s.domain}
+                                        <IconExternalLink size={8} color="var(--text-muted)" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AgentSidebar({ steps, isLoading }: { steps: AgentStep[]; isLoading: boolean }) {
-    const { planner, rounds } = groupIntoIterations(steps, isLoading);
+    const { planner, rounds } = groupIntoIterations(steps);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -104,7 +141,7 @@ export default function AgentSidebar({ steps, isLoading }: { steps: AgentStep[];
                                     <span style={{
                                         fontSize: "0.63rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
                                         padding: "0.1rem 0.5rem", borderRadius: 10,
-                                        background: passed && round.critic ? "var(--success-dim)" : "var(--bg)",
+                                        background: passed && round.critic ? "rgba(63,185,80,0.08)" : "var(--bg)",
                                         border: `1px solid ${passed && round.critic ? "rgba(63,185,80,0.3)" : "var(--border)"}`,
                                         color: passed && round.critic ? "var(--success)" : "var(--text-muted)",
                                     }}>
@@ -113,8 +150,14 @@ export default function AgentSidebar({ steps, isLoading }: { steps: AgentStep[];
                                 </div>
 
                                 <div style={{ paddingLeft: "1.1rem", borderLeft: "1px solid var(--border)", marginLeft: "0.6rem" }}>
-                                    <CompactStep icon={<IconSearch size={11} color="var(--searcher)" />} label="Searcher" color="var(--searcher)" done={round.searcher} active={isLastRound && isLoading && !round.searcher} />
-                                    <CompactStep icon={<IconEdit size={11} color="var(--writer)" />} label="Writer" color="var(--writer)" done={round.writer} active={isLastRound && isLoading && round.searcher && !round.writer} />
+                                    <CompactStep icon={<IconSearch size={11} color="var(--searcher)" />} label="Searcher" color="var(--searcher)" done={round.searcher} active={isLastRound && isLoading && !round.writer} />
+                                    {/* Execution trace */}
+                                    {round.trace && round.trace.length > 0 && (
+                                        <div style={{ paddingLeft: "1.5rem", marginBottom: "0.25rem" }}>
+                                            <TracePanel trace={round.trace} />
+                                        </div>
+                                    )}
+                                    <CompactStep icon={<IconEdit size={11} color="var(--writer)" />} label="Writer" color="var(--writer)" done={round.writer} active={isLastRound && isLoading && round.searcher && !round.critic} />
                                     <CompactStep icon={<IconScale size={11} color="var(--critic)" />} label="Critic" color="var(--critic)" done={round.critic} active={isLastRound && isLoading && round.writer && !round.critic}
                                         badge={round.score > 0 ? { score: round.score, passed } : undefined}
                                     />
@@ -173,7 +216,7 @@ function CompactStep({ icon, label, color, done, active, badge }: {
                 {active && <span style={{ marginLeft: "0.3rem", fontSize: "0.63rem", color: "var(--accent)" }}>running...</span>}
             </span>
             {badge && (
-                <span style={{ fontSize: "0.63rem", fontWeight: 700, padding: "0.05rem 0.4rem", borderRadius: 10, background: badge.passed ? "var(--success-dim)" : "var(--warning-dim)", color: badge.passed ? "var(--success)" : "var(--warning)", border: `1px solid ${badge.passed ? "rgba(63,185,80,0.3)" : "rgba(210,153,34,0.3)"}` }}>
+                <span style={{ fontSize: "0.63rem", fontWeight: 700, padding: "0.05rem 0.4rem", borderRadius: 10, background: badge.passed ? "rgba(63,185,80,0.08)" : "rgba(210,153,34,0.1)", color: badge.passed ? "var(--success)" : "var(--warning)", border: `1px solid ${badge.passed ? "rgba(63,185,80,0.3)" : "rgba(210,153,34,0.3)"}` }}>
                     {badge.score}/10
                 </span>
             )}

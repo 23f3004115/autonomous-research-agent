@@ -1,6 +1,7 @@
 import uuid
-from db.supabase_client import save_session
-from fastapi import APIRouter
+import secrets
+from db.supabase_client import save_session, get_all_sessions, get_session_by_id, get_session_by_slug
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from graph.research_graph import research_graph
 
@@ -47,8 +48,43 @@ async def run_research(request: ResearchRequest):
         sub_questions=final_state["sub_questions"],
     )
 
-from db.supabase_client import get_all_sessions
-
 @router.get("/sessions")
 async def list_sessions():
     return get_all_sessions()
+
+@router.get("/sessions/{session_id}")
+async def get_session(session_id: str):
+    session = get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+@router.post("/sessions/{session_id}/share")
+async def create_share_link(session_id: str):
+    """Generate a public share slug for a session and return the shareable URL."""
+    session = get_session_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # If already has a slug, return it
+    if session.get("share_slug"):
+        return {"slug": session["share_slug"]}
+
+    # Generate a short random slug
+    slug = secrets.token_urlsafe(8)
+
+    from db.supabase_client import supabase
+    supabase.table("research_sessions").update({
+        "share_slug": slug,
+        "is_public": True,
+    }).eq("id", session_id).execute()
+
+    return {"slug": slug}
+
+@router.get("/r/{slug}")
+async def get_shared_session(slug: str):
+    """Public endpoint — no auth needed — for shareable report links."""
+    session = get_session_by_slug(slug)
+    if not session:
+        raise HTTPException(status_code=404, detail="Report not found or not public")
+    return session

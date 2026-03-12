@@ -18,12 +18,12 @@ def planner_node(state: AgentState) -> AgentState:
 
     response = llm.invoke([
         SystemMessage(content="""You are a research planner.
-Given a research goal, break it into exactly 4 focused sub-questions.
+Given a research goal, break it into 3 to 6 focused sub-questions depending on the complexity.
+Simple, narrow topics need 3. Broad, multi-faceted topics need up to 6.
 Output ONLY a numbered list like:
 1. question one
 2. question two
 3. question three
-4. question four
 No extra text. No explanations."""),
         HumanMessage(content=f"Research goal: {state['goal']}")
     ])
